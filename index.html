@@ -676,15 +676,45 @@ function getStreak(habitId, todayKey) {
   return streak;
 }
 
+// ─── GOOGLE SHEETS SYNC ──────────────────────────────────────
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyQuu_D2lJHlqp0S8PtgqoXvF59Gu6E34pj-Bk34ydorj1ZZjfUuthvjXdind8T0kFhXg/exec';
+
+async function syncToSheets(day, date, log, habits) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day, date, log, habits })
+    });
+  } catch(e) {
+    console.log('Sync error:', e);
+  }
+}
+
 // ─── LOG ─────────────────────────────────────────────────────
-function saveLog() {
+async function saveLog() {
   const text = document.getElementById('log-input').value.trim();
   if (!text) return;
   const state = getState();
   if (!state.logs) state.logs = {};
-  state.logs[todayKey()] = text;
+  const key = todayKey();
+  state.logs[key] = text;
   saveState(state);
-  showToast('📖 Entry saved');
+
+  const dayNum = getDayNumber();
+  const todayHabits = ALL_HABITS.filter(h => habitAppliestoday(h, dayNum));
+  const checked = state[key] || {};
+  const completedHabits = todayHabits
+    .filter(h => checked[h.id])
+    .map(h => h.name)
+    .join(', ') || 'None logged';
+
+  const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+
+  showToast('⏳ Saving to Google Sheets...');
+  await syncToSheets(dayNum, dateStr, text, completedHabits);
+  showToast('✅ Saved to Google Sheets');
 }
 
 // ─── STREAKS VIEW ─────────────────────────────────────────────
