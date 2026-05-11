@@ -505,6 +505,38 @@
     </div>
   </div>
 
+  <!-- TASKS VIEW -->
+  <div class="view" id="view-tasks">
+    <div class="header">
+      <div class="header-eyebrow">Timed Missions</div>
+      <h1>My <span>Tasks</span></h1>
+    </div>
+    <div style="padding:20px;">
+
+      <!-- ADD TASK FORM -->
+      <div class="review-card" style="margin-bottom:20px;">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;">New Timed Task</div>
+        <input id="task-name-input" type="text" placeholder="e.g. Pray the prayer of Jabez" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 13px;outline:none;margin-bottom:10px;" />
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <label style="font-size:13px;color:var(--text-muted);white-space:nowrap;">Days:</label>
+          <input id="task-days-input" type="number" min="1" max="90" placeholder="e.g. 10" style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 13px;outline:none;" />
+        </div>
+        <button onclick="addTask()" style="background:var(--gold);color:#0a0a0a;border:none;border-radius:10px;padding:12px 24px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;width:100%;">Add Task</button>
+      </div>
+
+      <!-- ACTIVE TASKS -->
+      <div class="section-title" style="padding:0;margin-bottom:12px;">Active</div>
+      <div id="active-tasks" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;"></div>
+      <p id="no-active-tasks" style="color:var(--text-dim);font-size:13px;margin-bottom:24px;">No active tasks yet.</p>
+
+      <!-- COMPLETED TASKS -->
+      <div class="section-title" style="padding:0;margin-bottom:12px;">Completed</div>
+      <div id="completed-tasks" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <p id="no-completed-tasks" style="color:var(--text-dim);font-size:13px;">No completed tasks yet.</p>
+
+    </div>
+  </div>
+
 </div>
 
 <!-- BOTTOM NAV -->
@@ -516,6 +548,10 @@
   <button class="nav-btn" onclick="switchView('streaks', this)">
     <span class="nav-icon">🔥</span>
     <span class="nav-label">Streaks</span>
+  </button>
+  <button class="nav-btn" onclick="switchView('tasks', this)">
+    <span class="nav-icon">⏳</span>
+    <span class="nav-label">Tasks</span>
   </button>
   <button class="nav-btn" onclick="switchView('log', this)">
     <span class="nav-icon">📖</span>
@@ -546,6 +582,8 @@ const ALL_HABITS = [
   { id: 'deep_bible', name: 'Deep Bible Study', sub: 'Extended study session', days: 'weekend', phase: 2, emoji: '✝️' },
   { id: 'weekly_review', name: 'Weekly Review', sub: 'Reflect, plan next week', days: 'sunday', phase: 2, emoji: '📊' },
   { id: 'football', name: 'Football', sub: 'When knee allows', days: 'flexible', phase: 3, emoji: '⚽' },
+  { id: 'no_tv', name: 'No TV Today', sub: 'Weekdays only — weekends are fine', days: 'weekday', phase: 1, emoji: '📺' },
+  { id: 'social_limit', name: 'Social Media Limit', sub: '5 mins per app — learning exempt', days: 'daily', phase: 1, emoji: '📵' },
 ];
 
 // ─── STATE ────────────────────────────────────────────────────
@@ -661,6 +699,13 @@ function toggleHabit(id, key, row) {
   setTimeout(() => row.classList.remove('just-checked'), 300);
   if (state[key][id]) showToast('✓ Habit logged');
   renderStreaks();
+  // Sync habit log to sheets
+  const dayNum = getDayNumber();
+  const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  const habit = ALL_HABITS.find(h => h.id === id);
+  if (habit) {
+    syncHabitLog(dayNum, dateStr, habit.name, !!state[key][id]);
+  }
 }
 
 function getStreak(habitId, todayKey) {
@@ -679,17 +724,27 @@ function getStreak(habitId, todayKey) {
 // ─── GOOGLE SHEETS SYNC ──────────────────────────────────────
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyQuu_D2lJHlqp0S8PtgqoXvF59Gu6E34pj-Bk34ydorj1ZZjfUuthvjXdind8T0kFhXg/exec';
 
-async function syncToSheets(day, date, log, habits) {
+async function sheetsFetch(payload) {
   try {
     await fetch(SHEETS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ day, date, log, habits })
+      body: JSON.stringify(payload)
     });
-  } catch(e) {
-    console.log('Sync error:', e);
-  }
+  } catch(e) { console.log('Sync error:', e); }
+}
+
+async function syncHabitLog(day, date, habitName, checked) {
+  const dow = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+  await sheetsFetch({ type: 'habit_log', day, date, dow, habitName, checked: checked ? 'Yes' : 'No' });
+}
+
+async function syncTaskLog(taskName, totalDays, daysCompleted, status, dateCompleted) {
+  const day = getDayNumber();
+  const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  const pct = Math.round((daysCompleted / totalDays) * 100);
+  await sheetsFetch({ type: 'task_log', day, date, taskName, totalDays, daysCompleted, pct, status, dateCompleted });
 }
 
 // ─── LOG ─────────────────────────────────────────────────────
@@ -703,17 +758,30 @@ async function saveLog() {
   saveState(state);
 
   const dayNum = getDayNumber();
+  const phase = getPhase(dayNum);
+  const dow = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+  const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const todayHabits = ALL_HABITS.filter(h => habitAppliestoday(h, dayNum));
   const checked = state[key] || {};
-  const completedHabits = todayHabits
-    .filter(h => checked[h.id])
-    .map(h => h.name)
-    .join(', ') || 'None logged';
-
-  const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  const completedList = todayHabits.filter(h => checked[h.id]).map(h => h.name);
+  const completedHabits = completedList.join(', ') || 'None logged';
+  const totalAvailable = todayHabits.length;
+  const totalCompleted = completedList.length;
+  const completionPct = totalAvailable > 0 ? Math.round((totalCompleted / totalAvailable) * 100) : 0;
 
   showToast('⏳ Saving to Google Sheets...');
-  await syncToSheets(dayNum, dateStr, text, completedHabits);
+  await sheetsFetch({
+    type: 'daily_summary',
+    day: dayNum,
+    date: dateStr,
+    dow,
+    phase,
+    log: text,
+    totalAvailable,
+    totalCompleted,
+    completionPct,
+    completedHabits
+  });
   showToast('✅ Saved to Google Sheets');
 }
 
@@ -792,6 +860,108 @@ function renderJournal() {
 }
 
 // ─── NAV ──────────────────────────────────────────────────────
+// ─── TASKS ───────────────────────────────────────────────────
+function getTasks() {
+  const s = getState();
+  return s.tasks || [];
+}
+
+function saveTasks(tasks) {
+  const s = getState();
+  s.tasks = tasks;
+  saveState(s);
+}
+
+function addTask() {
+  const name = document.getElementById('task-name-input').value.trim();
+  const days = parseInt(document.getElementById('task-days-input').value);
+  if (!name || !days || days < 1) { showToast('⚠️ Enter a task and number of days'); return; }
+  const tasks = getTasks();
+  tasks.push({
+    id: Date.now().toString(),
+    name,
+    totalDays: days,
+    startDate: todayKey(),
+    checkedDays: []
+  });
+  saveTasks(tasks);
+  document.getElementById('task-name-input').value = '';
+  document.getElementById('task-days-input').value = '';
+  renderTasks();
+  showToast('✅ Task added');
+}
+
+async function toggleTaskDay(taskId) {
+  const tasks = getTasks();
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const key = todayKey();
+  if (task.checkedDays.includes(key)) {
+    task.checkedDays = task.checkedDays.filter(d => d !== key);
+  } else {
+    task.checkedDays.push(key);
+  }
+  saveTasks(tasks);
+  renderTasks();
+  // Sync to sheets
+  const daysCompleted = task.checkedDays.length;
+  const isComplete = daysCompleted >= task.totalDays;
+  const dateCompleted = isComplete ? new Date().toLocaleDateString('en-GB') : '-';
+  await syncTaskLog(task.name, task.totalDays, daysCompleted, isComplete ? 'Complete' : 'Active', dateCompleted);
+}
+
+function deleteTask(taskId) {
+  const tasks = getTasks().filter(t => t.id !== taskId);
+  saveTasks(tasks);
+  renderTasks();
+  showToast('🗑️ Task removed');
+}
+
+function renderTasks() {
+  const tasks = getTasks();
+  const activeEl = document.getElementById('active-tasks');
+  const completedEl = document.getElementById('completed-tasks');
+  const noActive = document.getElementById('no-active-tasks');
+  const noCompleted = document.getElementById('no-completed-tasks');
+  activeEl.innerHTML = '';
+  completedEl.innerHTML = '';
+
+  const active = tasks.filter(t => t.checkedDays.length < t.totalDays);
+  const completed = tasks.filter(t => t.checkedDays.length >= t.totalDays);
+
+  noActive.style.display = active.length ? 'none' : 'block';
+  noCompleted.style.display = completed.length ? 'none' : 'block';
+
+  function makeTaskCard(task, isDone) {
+    const checked = task.checkedDays.includes(todayKey());
+    const progress = Math.min(task.checkedDays.length, task.totalDays);
+    const pct = Math.round((progress / task.totalDays) * 100);
+    const card = document.createElement('div');
+    card.className = 'review-card';
+    card.style.cursor = isDone ? 'default' : 'pointer';
+    card.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;color:${isDone ? 'var(--text-muted)' : 'var(--text)'};margin-bottom:2px;">${task.name}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${progress} / ${task.totalDays} days ${isDone ? '· ✅ Complete' : ''}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${!isDone ? `<div style="width:28px;height:28px;border-radius:50%;border:2px solid ${checked ? 'var(--green)' : 'var(--border)'};background:${checked ? 'var(--green)' : 'var(--surface2)'};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">${checked ? '✓' : ''}</div>` : ''}
+          <div onclick="event.stopPropagation();deleteTask('${task.id}')" style="font-size:16px;cursor:pointer;padding:2px 4px;color:var(--text-dim);">✕</div>
+        </div>
+      </div>
+      <div style="background:var(--surface2);border-radius:4px;height:4px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${isDone ? 'var(--green)' : 'linear-gradient(90deg,var(--gold),var(--gold-light))'};border-radius:4px;transition:width 0.4s;"></div>
+      </div>
+    `;
+    if (!isDone) card.addEventListener('click', () => { toggleTaskDay(task.id); });
+    return card;
+  }
+
+  active.forEach(t => activeEl.appendChild(makeTaskCard(t, false)));
+  completed.forEach(t => completedEl.appendChild(makeTaskCard(t, true)));
+}
+
 function switchView(name, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -799,6 +969,7 @@ function switchView(name, btn) {
   btn.classList.add('active');
   if (name === 'streaks') renderStreaks();
   if (name === 'log') renderJournal();
+  if (name === 'tasks') renderTasks();
 }
 
 // ─── TOAST ────────────────────────────────────────────────────
