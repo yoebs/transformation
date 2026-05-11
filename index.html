@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>90 Day Transformation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #181818;
+    --border: #222222;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-dim: rgba(201,168,76,0.15);
+    --text: #f0ede8;
+    --text-muted: #888;
+    --text-dim: #555;
+    --green: #4caf7d;
+    --red: #e05c5c;
+    --phase1: #4c7ac9;
+    --phase2: #9b59b6;
+    --phase3: #c9a84c;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* HEADER */
+  .header {
+    padding: 32px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-eyebrow {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .header h1 span { color: var(--gold); font-style: italic; }
+
+  /* DAY COUNTER */
+  .day-hero {
+    margin: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .day-hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 150px; height: 150px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    filter: blur(40px);
+  }
+  .day-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .day-number { font-family: 'Playfair Display', serif; font-size: 72px; font-weight: 900; color: var(--gold); line-height: 1; }
+  .day-date { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .day-phase {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .phase-1 { background: rgba(76,122,201,0.2); color: #7aa8e8; border: 1px solid rgba(76,122,201,0.3); }
+  .phase-2 { background: rgba(155,89,182,0.2); color: #c088e0; border: 1px solid rgba(155,89,182,0.3); }
+  .phase-3 { background: rgba(201,168,76,0.2); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+
+  /* PROGRESS BAR */
+  .progress-section { margin: 0 20px 20px; }
+  .progress-bar-wrap {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
+
+  /* WHY BANNER */
+  .why-banner {
+    margin: 0 20px 20px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .why-banner .why-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .why-banner p { font-family: 'Playfair Display', serif; font-style: italic; font-size: 14px; color: var(--text); line-height: 1.5; }
+
+  /* SECTION TITLES */
+  .section-title {
+    padding: 0 20px;
+    margin-bottom: 12px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* HABIT GRID */
+  .habits-section { margin-bottom: 28px; }
+  .habit-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+  .habit-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .habit-row:active { transform: scale(0.98); }
+  .habit-row.done {
+    border-color: rgba(76,175,125,0.4);
+    background: rgba(76,175,125,0.05);
+  }
+  .habit-check {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .habit-row.done .habit-check {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .habit-row.done .habit-check::after { content: '✓'; color: white; font-size: 13px; font-weight: 700; }
+  .habit-info { flex: 1; }
+  .habit-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .habit-row.done .habit-name { color: var(--text-muted); }
+  .habit-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .habit-streak { font-size: 11px; color: var(--gold); font-weight: 600; }
+
+  /* LOCKED HABIT */
+  .habit-row.locked { opacity: 0.4; cursor: not-allowed; }
+  .habit-row.locked .habit-check::after { content: '🔒'; font-size: 11px; }
+
+  /* LOG SECTION */
+  .log-section { margin: 0 20px 28px; }
+  .log-textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 14px;
+    resize: none;
+    min-height: 90px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+  .log-textarea:focus { border-color: var(--gold); }
+  .log-textarea::placeholder { color: var(--text-dim); }
+  .log-save-btn {
+    margin-top: 8px;
+    background: var(--gold);
+    color: #0a0a0a;
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .log-save-btn:active { transform: scale(0.97); background: var(--gold-light); }
+
+  /* PAST LOGS */
+  .past-logs { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .past-log-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+  .past-log-date { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .past-log-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* WEEKLY REVIEW */
+  .review-section { margin: 0 20px 28px; }
+  .review-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .review-stat {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .review-stat-num { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--gold); }
+  .review-stat-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; }
+
+  /* PHASE TIMELINE */
+  .timeline-section { margin: 0 20px 28px; }
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .timeline-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .timeline-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+  .timeline-item:nth-child(1) .timeline-dot { background: var(--phase1); }
+  .timeline-item:nth-child(2) .timeline-dot { background: var(--phase2); }
+  .timeline-item:nth-child(3) .timeline-dot { background: var(--phase3); }
+  .timeline-phase { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+  .timeline-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .timeline-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .timeline-active { border-color: var(--gold); }
+  .timeline-active .timeline-phase { color: var(--gold); }
+
+  /* NAV */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    padding: 6px 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-icon { font-size: 20px; transition: transform 0.15s; }
+  .nav-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); font-family: 'DM Sans', sans-serif; transition: color 0.15s; }
+  .nav-btn.active .nav-icon { transform: scale(1.15); }
+  .nav-btn.active .nav-label { color: var(--gold); }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+    background: var(--surface);
+    border: 1px solid var(--gold);
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--gold);
+    z-index: 999;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* SCORE RING */
+  .score-ring-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .score-ring { position: relative; width: 70px; height: 70px; flex-shrink: 0; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--gold); }
+  .score-ring-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .score-ring-info p { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+  /* Responsive tweaks */
+  @media (min-width: 500px) {
+    .app { padding-bottom: 100px; }
+  }
+
+  /* Animations */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .view.active { animation: fadeInUp 0.25s ease; }
+
+  .habit-row.just-checked { animation: pulse 0.3s ease; }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TODAY VIEW -->
+  <div class="view active" id="view-today">
+
+    <div class="header">
+      <div class="header-eyebrow">90 Day Transformation</div>
+      <h1>Today's <span>Mission</span></h1>
+    </div>
+
+    <div class="day-hero">
+      <div class="day-label">Day</div>
+      <div class="day-number" id="day-number">1</div>
+      <div class="day-date" id="day-date">Mon 11 May 2026</div>
+      <div class="day-phase" id="day-phase">Phase 1 — Foundation</div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill" style="width:1%"></div>
+      </div>
+      <div class="progress-labels">
+        <span>Day 1</span>
+        <span id="progress-label">1 / 90 days</span>
+        <span>Day 90</span>
+      </div>
+    </div>
+
+    <div class="why-banner">
+      <div class="why-label">Your Why</div>
+      <p id="why-text">"I want to become intentional, disciplined and more faithful to God — and richer for myself, my family, my friends and the kingdom. I am done waiting for signs. I trust God. I am disciplined. I am building this life with Him, remembering His ways and lessons every single day."</p>
+    </div>
+
+    <!-- HABITS -->
+    <div class="habits-section">
+      <div class="section-title" id="today-habits-title">Today's Habits</div>
+      <div class="habit-list" id="habit-list"></div>
+    </div>
+
+    <!-- DAILY LOG -->
+    <div class="log-section">
+      <div class="section-title" style="padding:0;margin-bottom:10px;">Quick Log</div>
+      <textarea class="log-textarea" id="log-input" placeholder="How's today going? Any wins, struggles, or thoughts..."></textarea>
+      <button class="log-save-btn" onclick="saveLog()">Save Log Entry</button>
+    </div>
+
+  </div>
+
+  <!-- STREAKS VIEW -->
+  <div class="view" id="view-streaks">
+    <div class="header">
+      <div class="header-eyebrow">Consistency</div>
+      <h1>Your <span>Streaks</span></h1>
+    </div>
+    <div style="padding: 20px;">
+      <div class="score-ring-wrap" id="consistency-score-wrap">
+        <div class="score-ring">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#222" stroke-width="6"/>
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#c9a84c" stroke-width="6"
+              stroke-dasharray="175.9" stroke-dashoffset="175.9" id="ring-arc" stroke-linecap="round"/>
+          </svg>
+          <div class="score-ring-text" id="ring-pct">0%</div>
+        </div>
+        <div class="score-ring-info">
+          <h3>Consistency Score</h3>
+          <p id="consistency-desc">Track your habits daily to build your score.</p>
+        </div>
+      </div>
+      <div id="streak-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
+  <!-- LOG VIEW -->
+  <div class="view" id="view-log">
+    <div class="header">
+      <div class="header-eyebrow">Your Journey</div>
+      <h1>Past <span>Entries</span></h1>
+    </div>
+    <div style="padding:20px;">
+      <div id="all-logs" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <p id="no-logs-msg" style="color:var(--text-dim);font-size:13px;">No entries yet. Start logging from the Today tab.</p>
+    </div>
+  </div>
+
+  <!-- PLAN VIEW -->
+  <div class="view" id="view-plan">
+    <div class="header">
+      <div class="header-eyebrow">The Blueprint</div>
+      <h1>Your <span>Plan</span></h1>
+    </div>
+    <div style="padding:20px 0;">
+
+      <div class="timeline-section">
+        <div class="section-title" style="padding:0 20px;">3 Phases</div>
+        <div class="timeline">
+          <div class="timeline-item timeline-active">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-phase">Days 1–30 · Active Now</div>
+              <div class="timeline-title">Phase 1 — Foundation</div>
+              <div class="timeline-desc">Lock in your core habits from Day 1. Morning routine, gym (Tue/Wed/Thu), Sunday run, Bible + prayer, day planning on commute, YouTube channel work evenings. Just show up every day.</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-phase">Days 31–60</div>
+              <div class="timeline-title">Phase 2 — Build</div>
+              <div class="timeline-desc">Add YouTube channel work evenings (1–2hrs). Deepen Bible study. Introduce weekly reviews. Assess football knee.</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div>
+              <div class="timeline-phase">Days 61–90</div>
+              <div class="timeline-title">Phase 3 — Solidify</div>
+              <div class="timeline-desc">Everything runs together. Weekly reviews are your anchor. Football if knee allows. You finish knowing exactly who you are daily.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 20px;">
+        <div class="section-title" style="padding:0;margin-bottom:12px;">Physical Goal</div>
+        <div class="review-card" style="margin-bottom:20px;">
+          <div style="font-size:14px;line-height:1.7;color:var(--text-muted);">
+            <strong style="color:var(--text);">Body Recomposition</strong><br>
+            Maintain bodyweight · Drop fat · Build muscle<br><br>
+            Gym 3x (Tue/Wed/Thu) + Sunday run.<br>
+            Pack lunch daily to control nutrition.<br>
+            Protect your 6–7hrs sleep — this is when muscle is built.
+          </div>
+        </div>
+
+        <div class="section-title" style="padding:0;margin-bottom:12px;">Failure Defences</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="review-card">
+            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Motivation Dip</div>
+            <div style="font-size:13px;color:var(--text-muted);line-height:1.6;">Re-read your WHY every morning. It's pinned at the top of Today. The feeling of discipline outlasts the feeling of motivation.</div>
+          </div>
+          <div class="review-card">
+            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Life Disruption</div>
+            <div style="font-size:13px;color:var(--text-muted);line-height:1.6;">A missed day is never a missed week. One rule: never miss twice. Log the disruption here and move on.</div>
+          </div>
+          <div class="review-card">
+            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">No Plan = Drift</div>
+            <div style="font-size:13px;color:var(--text-muted);line-height:1.6;">Plan your day on the commute, every day. 5 mins on the train beats a reactive 9:30am scramble every time.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchView('today', this)">
+    <span class="nav-icon">☀️</span>
+    <span class="nav-label">Today</span>
+  </button>
+  <button class="nav-btn" onclick="switchView('streaks', this)">
+    <span class="nav-icon">🔥</span>
+    <span class="nav-label">Streaks</span>
+  </button>
+  <button class="nav-btn" onclick="switchView('log', this)">
+    <span class="nav-icon">📖</span>
+    <span class="nav-label">Journal</span>
+  </button>
+  <button class="nav-btn" onclick="switchView('plan', this)">
+    <span class="nav-icon">🗺️</span>
+    <span class="nav-label">Plan</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────
+const START_DATE = new Date('2026-05-11');
+const TOTAL_DAYS = 90;
+
+// ─── HABIT DEFINITIONS ───────────────────────────────────────
+const ALL_HABITS = [
+  { id: 'morning', name: 'Morning Routine by 7am', sub: 'Up, toilet, teeth, shower, dressed', days: 'weekday', phase: 1, emoji: '🌅' },
+  { id: 'pray_read', name: 'Prayer & Bible Reading', sub: 'Every morning before leaving', days: 'daily', phase: 1, emoji: '📖' },
+  { id: 'gym', name: 'Gym Session', sub: 'Tue · Wed · Thu', days: 'gym', phase: 1, emoji: '🏋️' },
+  { id: 'commute_plan', name: 'Plan the Day on Commute', sub: 'Structure before 9am', days: 'weekday', phase: 1, emoji: '🗓️' },
+  { id: 'pack_lunch', name: 'Pack Lunch', sub: 'Nutrition control', days: 'weekday', phase: 1, emoji: '🥗' },
+  { id: 'sunday_run', name: 'Sunday Run', sub: 'Morning run outdoors', days: 'sunday', phase: 1, emoji: '🏃' },
+  { id: 'youtube', name: 'YouTube Channel Work', sub: '1–2hrs after work', days: 'weekday', phase: 1, emoji: '🎬' },
+  { id: 'deep_bible', name: 'Deep Bible Study', sub: 'Extended study session', days: 'weekend', phase: 2, emoji: '✝️' },
+  { id: 'weekly_review', name: 'Weekly Review', sub: 'Reflect, plan next week', days: 'sunday', phase: 2, emoji: '📊' },
+  { id: 'football', name: 'Football', sub: 'When knee allows', days: 'flexible', phase: 3, emoji: '⚽' },
+];
+
+// ─── STATE ────────────────────────────────────────────────────
+function getState() {
+  try { return JSON.parse(localStorage.getItem('transform_v2') || '{}'); } catch(e) { return {}; }
+}
+function saveState(s) {
+  try { localStorage.setItem('transform_v2', JSON.stringify(s)); } catch(e) {}
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getDayNumber() {
+  const now = new Date();
+  const diff = Math.floor((now - START_DATE) / 86400000) + 1;
+  return Math.max(1, Math.min(diff, 90));
+}
+
+function getPhase(day) {
+  if (day <= 30) return 1;
+  if (day <= 60) return 2;
+  return 3;
+}
+
+function getWeekday() {
+  return new Date().getDay(); // 0=Sun,1=Mon...6=Sat
+}
+
+function habitAppliestoday(habit, dayNum) {
+  const wd = getWeekday();
+  const phase = getPhase(dayNum);
+  if (habit.phase > phase) return false;
+  if (habit.days === 'daily') return true;
+  if (habit.days === 'weekday') return wd >= 1 && wd <= 5;
+  if (habit.days === 'gym') return wd === 2 || wd === 3 || wd === 4; // Tue/Wed/Thu
+  if (habit.days === 'sunday') return wd === 0;
+  if (habit.days === 'weekend') return wd === 0 || wd === 6;
+  if (habit.days === 'flexible') return true;
+  return false;
+}
+
+// ─── RENDER TODAY ─────────────────────────────────────────────
+function renderToday() {
+  const dayNum = getDayNumber();
+  const phase = getPhase(dayNum);
+  const state = getState();
+  const key = todayKey();
+
+  // Day number
+  document.getElementById('day-number').textContent = dayNum;
+
+  // Date
+  const opts = { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' };
+  document.getElementById('day-date').textContent = new Date().toLocaleDateString('en-GB', opts);
+
+  // Phase badge
+  const phaseEl = document.getElementById('day-phase');
+  const phaseNames = { 1: 'Phase 1 — Foundation', 2: 'Phase 2 — Build', 3: 'Phase 3 — Solidify' };
+  phaseEl.textContent = phaseNames[phase];
+  phaseEl.className = 'day-phase phase-' + phase;
+
+  // Progress
+  const pct = Math.round((dayNum / 90) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = dayNum + ' / 90 days';
+
+  // Habits
+  const todayHabits = ALL_HABITS.filter(h => habitAppliestoday(h, dayNum));
+  const checkedToday = state[key] || {};
+  const wd = getWeekday();
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('today-habits-title').textContent = dayNames[wd] + ' · ' + todayHabits.length + ' habits';
+
+  const list = document.getElementById('habit-list');
+  list.innerHTML = '';
+
+  if (todayHabits.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:30px 0;color:var(--text-dim);font-size:13px;">Rest day — recovery is part of the plan.</div>';
+    return;
+  }
+
+  todayHabits.forEach(habit => {
+    const done = !!checkedToday[habit.id];
+    const row = document.createElement('div');
+    row.className = 'habit-row' + (done ? ' done' : '');
+    row.innerHTML = `
+      <div class="habit-check"></div>
+      <div class="habit-info">
+        <div class="habit-name">${habit.emoji} ${habit.name}</div>
+        <div class="habit-sub">${habit.sub}</div>
+      </div>
+      <div class="habit-streak">${getStreak(habit.id, key)} day streak</div>
+    `;
+    row.addEventListener('click', () => toggleHabit(habit.id, key, row));
+    list.appendChild(row);
+  });
+
+  // Restore log
+  const logs = state.logs || {};
+  if (logs[key]) document.getElementById('log-input').value = logs[key];
+}
+
+function toggleHabit(id, key, row) {
+  const state = getState();
+  if (!state[key]) state[key] = {};
+  state[key][id] = !state[key][id];
+  saveState(state);
+  row.classList.toggle('done', state[key][id]);
+  row.classList.add('just-checked');
+  setTimeout(() => row.classList.remove('just-checked'), 300);
+  if (state[key][id]) showToast('✓ Habit logged');
+  renderStreaks();
+}
+
+function getStreak(habitId, todayKey) {
+  const state = getState();
+  let streak = 0;
+  let d = new Date();
+  for (let i = 0; i < 90; i++) {
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (state[k] && state[k][habitId]) { streak++; d.setDate(d.getDate()-1); }
+    else if (k === todayKey) { d.setDate(d.getDate()-1); continue; }
+    else break;
+  }
+  return streak;
+}
+
+// ─── LOG ─────────────────────────────────────────────────────
+function saveLog() {
+  const text = document.getElementById('log-input').value.trim();
+  if (!text) return;
+  const state = getState();
+  if (!state.logs) state.logs = {};
+  state.logs[todayKey()] = text;
+  saveState(state);
+  showToast('📖 Entry saved');
+}
+
+// ─── STREAKS VIEW ─────────────────────────────────────────────
+function renderStreaks() {
+  const dayNum = getDayNumber();
+  const state = getState();
+  const key = todayKey();
+
+  // Calculate overall consistency
+  let total = 0, done = 0;
+  for (let i = 0; i < dayNum; i++) {
+    const d = new Date(START_DATE);
+    d.setDate(d.getDate() + i);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const dayHabits = ALL_HABITS.filter(h => habitAppliestoday(h, i + 1));
+    const checked = state[k] || {};
+    dayHabits.forEach(h => { total++; if (checked[h.id]) done++; });
+  }
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  // Ring
+  const circumference = 175.9;
+  const offset = circumference - (pct / 100) * circumference;
+  document.getElementById('ring-arc').style.strokeDashoffset = offset;
+  document.getElementById('ring-pct').textContent = pct + '%';
+  document.getElementById('consistency-desc').textContent =
+    pct >= 80 ? 'Excellent — this is what transformation looks like.' :
+    pct >= 60 ? 'Good progress — keep pushing daily.' :
+    pct >= 40 ? 'Building momentum — every day counts.' :
+    'Early days — show up and the score rises.';
+
+  // Streak list
+  const sl = document.getElementById('streak-list');
+  sl.innerHTML = '';
+  ALL_HABITS.forEach(habit => {
+    const streak = getStreak(habit.id, key);
+    const phase = getPhase(dayNum);
+    const locked = habit.phase > phase;
+    const row = document.createElement('div');
+    row.className = 'habit-row' + (locked ? ' locked' : '');
+    row.style.cursor = 'default';
+    row.innerHTML = `
+      <div class="habit-check" style="border-color:${streak > 0 ? 'var(--gold)' : 'var(--border)'}">
+        ${streak > 0 ? '<span style="font-size:11px;color:var(--gold);font-weight:700;">' + streak + '</span>' : ''}
+      </div>
+      <div class="habit-info">
+        <div class="habit-name">${habit.emoji} ${habit.name}</div>
+        <div class="habit-sub">${locked ? '🔒 Unlocks Phase ' + habit.phase : habit.sub}</div>
+      </div>
+      <div class="habit-streak">${streak > 0 ? streak + ' days' : locked ? 'locked' : 'start today'}</div>
+    `;
+    sl.appendChild(row);
+  });
+}
+
+// ─── JOURNAL VIEW ─────────────────────────────────────────────
+function renderJournal() {
+  const state = getState();
+  const logs = state.logs || {};
+  const keys = Object.keys(logs).sort().reverse();
+  const container = document.getElementById('all-logs');
+  const noMsg = document.getElementById('no-logs-msg');
+  container.innerHTML = '';
+  if (keys.length === 0) { noMsg.style.display = 'block'; return; }
+  noMsg.style.display = 'none';
+  keys.forEach(k => {
+    const d = new Date(k);
+    const label = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    const dayNum = Math.floor((new Date(k) - START_DATE) / 86400000) + 1;
+    const entry = document.createElement('div');
+    entry.className = 'past-log-entry';
+    entry.innerHTML = `<div class="past-log-date">Day ${dayNum} · ${label}</div><div class="past-log-text">${logs[k]}</div>`;
+    container.appendChild(entry);
+  });
+}
+
+// ─── NAV ──────────────────────────────────────────────────────
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'streaks') renderStreaks();
+  if (name === 'log') renderJournal();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+renderToday();
+</script>
+</body>
+</html>
