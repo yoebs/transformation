@@ -334,6 +334,23 @@
     .app { padding-bottom: 100px; }
   }
 
+  /* LOADING OVERLAY */
+  .loading-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+  }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .loading-text { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* Animations */
   @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(12px); }
@@ -350,6 +367,12 @@
 </style>
 </head>
 <body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Syncing your data...</div>
+</div>
 
 <div class="app">
 
@@ -569,6 +592,64 @@
 // ─── CONSTANTS ───────────────────────────────────────────────
 const START_DATE = new Date('2026-05-11');
 const TOTAL_DAYS = 90;
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyQuu_D2lJHlqp0S8PtgqoXvF59Gu6E34pj-Bk34ydorj1ZZjfUuthvjXdind8T0kFhXg/exec';
+
+// ─── CLOUD STATE (single source of truth) ────────────────────
+// localCache mirrors cloud. On load we fetch cloud → merge into local.
+// All writes go to both local (instant UI) and cloud (sync).
+
+let _cloudLoaded = false;
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem('transform_v3') || '{}'); } catch(e) { return {}; }
+}
+function saveState(s) {
+  try { localStorage.setItem('transform_v3', JSON.stringify(s)); } catch(e) {}
+}
+
+// ─── CLOUD FETCH / PUSH ──────────────────────────────────────
+async function cloudPush(payload) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch(e) { console.log('Push error:', e); }
+}
+
+async function cloudLoadState() {
+  try {
+    showLoading(true);
+    const res = await fetch(SHEETS_URL + '?action=getState', { mode: 'cors' });
+    const data = await res.json();
+    if (data && data.appState) {
+      const remote = JSON.parse(data.appState);
+      // Merge: remote is authoritative, but keep any local keys not in remote
+      const local = getState();
+      const merged = Object.assign({}, local, remote);
+      // For daily habit keys and tasks, remote wins
+      saveState(merged);
+    }
+  } catch(e) {
+    console.log('Load error (using local):', e);
+  } finally {
+    showLoading(false);
+    _cloudLoaded = true;
+    renderToday();
+    renderStreaks();
+  }
+}
+
+async function cloudSaveState() {
+  const state = getState();
+  await cloudPush({ type: 'save_state', appState: JSON.stringify(state) });
+}
+
+function showLoading(on) {
+  const el = document.getElementById('loading-overlay');
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
 
 // ─── HABIT DEFINITIONS ───────────────────────────────────────
 const ALL_HABITS = [
@@ -586,14 +667,6 @@ const ALL_HABITS = [
   { id: 'social_limit', name: 'Social Media Limit', sub: '5 mins per app — learning exempt', days: 'daily', phase: 1, emoji: '📵' },
 ];
 
-// ─── STATE ────────────────────────────────────────────────────
-function getState() {
-  try { return JSON.parse(localStorage.getItem('transform_v2') || '{}'); } catch(e) { return {}; }
-}
-function saveState(s) {
-  try { localStorage.setItem('transform_v2', JSON.stringify(s)); } catch(e) {}
-}
-
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -602,7 +675,14 @@ function todayKey() {
 function getDayNumber() {
   const now = new Date();
   const diff = Math.floor((now - START_DATE) / 86400000) + 1;
-  return Math.max(1, Math.min(diff, 90));
+  return Math.max(1, diff); // No cap — works beyond 90 days
+}
+
+function getPhaseLabel(day) {
+  if (day <= 30) return 'Phase 1 — Foundation';
+  if (day <= 60) return 'Phase 2 — Build';
+  if (day <= 90) return 'Phase 3 — Solidify';
+  return 'Beyond 90 — Life OS';
 }
 
 function getPhase(day) {
@@ -644,14 +724,13 @@ function renderToday() {
 
   // Phase badge
   const phaseEl = document.getElementById('day-phase');
-  const phaseNames = { 1: 'Phase 1 — Foundation', 2: 'Phase 2 — Build', 3: 'Phase 3 — Solidify' };
-  phaseEl.textContent = phaseNames[phase];
-  phaseEl.className = 'day-phase phase-' + phase;
+  phaseEl.textContent = getPhaseLabel(dayNum);
+  phaseEl.className = 'day-phase phase-' + Math.min(phase, 3);
 
   // Progress
-  const pct = Math.round((dayNum / 90) * 100);
+  const pct = dayNum <= 90 ? Math.round((dayNum / 90) * 100) : 100;
   document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-label').textContent = dayNum + ' / 90 days';
+  document.getElementById('progress-label').textContent = dayNum <= 90 ? dayNum + ' / 90 days' : 'Day ' + dayNum + ' — Life OS';
 
   // Habits
   const todayHabits = ALL_HABITS.filter(h => habitAppliestoday(h, dayNum));
@@ -689,7 +768,7 @@ function renderToday() {
   if (logs[key]) document.getElementById('log-input').value = logs[key];
 }
 
-function toggleHabit(id, key, row) {
+async function toggleHabit(id, key, row) {
   const state = getState();
   if (!state[key]) state[key] = {};
   state[key][id] = !state[key][id];
@@ -697,15 +776,15 @@ function toggleHabit(id, key, row) {
   row.classList.toggle('done', state[key][id]);
   row.classList.add('just-checked');
   setTimeout(() => row.classList.remove('just-checked'), 300);
-  if (state[key][id]) showToast('✓ Habit logged');
+  if (state[key][id]) showToast('✓ Syncing...');
   renderStreaks();
-  // Sync habit log to sheets
+  // Save full state to cloud + log to habit sheet
+  await cloudSaveState();
   const dayNum = getDayNumber();
   const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const habit = ALL_HABITS.find(h => h.id === id);
-  if (habit) {
-    syncHabitLog(dayNum, dateStr, habit.name, !!state[key][id]);
-  }
+  if (habit) await syncHabitLog(dayNum, dateStr, habit.name, !!state[key][id]);
+  if (state[key][id]) showToast('✓ Synced');
 }
 
 function getStreak(habitId, todayKey) {
@@ -721,30 +800,17 @@ function getStreak(habitId, todayKey) {
   return streak;
 }
 
-// ─── GOOGLE SHEETS SYNC ──────────────────────────────────────
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyQuu_D2lJHlqp0S8PtgqoXvF59Gu6E34pj-Bk34ydorj1ZZjfUuthvjXdind8T0kFhXg/exec';
-
-async function sheetsFetch(payload) {
-  try {
-    await fetch(SHEETS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  } catch(e) { console.log('Sync error:', e); }
-}
-
+// ─── SHEET LOGGING HELPERS ───────────────────────────────────
 async function syncHabitLog(day, date, habitName, checked) {
   const dow = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
-  await sheetsFetch({ type: 'habit_log', day, date, dow, habitName, checked: checked ? 'Yes' : 'No' });
+  await cloudPush({ type: 'habit_log', day, date, dow, habitName, checked: checked ? 'Yes' : 'No' });
 }
 
 async function syncTaskLog(taskName, totalDays, daysCompleted, status, dateCompleted) {
   const day = getDayNumber();
   const date = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   const pct = Math.round((daysCompleted / totalDays) * 100);
-  await sheetsFetch({ type: 'task_log', day, date, taskName, totalDays, daysCompleted, pct, status, dateCompleted });
+  await cloudPush({ type: 'task_log', day, date, taskName, totalDays, daysCompleted, pct, status, dateCompleted });
 }
 
 // ─── LOG ─────────────────────────────────────────────────────
@@ -769,20 +835,15 @@ async function saveLog() {
   const totalCompleted = completedList.length;
   const completionPct = totalAvailable > 0 ? Math.round((totalCompleted / totalAvailable) * 100) : 0;
 
-  showToast('⏳ Saving to Google Sheets...');
-  await sheetsFetch({
+  showToast('⏳ Saving...');
+  await cloudSaveState();
+  await cloudPush({
     type: 'daily_summary',
-    day: dayNum,
-    date: dateStr,
-    dow,
-    phase,
-    log: text,
-    totalAvailable,
-    totalCompleted,
-    completionPct,
-    completedHabits
+    day: dayNum, date: dateStr, dow,
+    phase, log: text,
+    totalAvailable, totalCompleted, completionPct, completedHabits
   });
-  showToast('✅ Saved to Google Sheets');
+  showToast('✅ Saved & Synced');
 }
 
 // ─── STREAKS VIEW ─────────────────────────────────────────────
@@ -889,6 +950,7 @@ function addTask() {
   document.getElementById('task-days-input').value = '';
   renderTasks();
   showToast('✅ Task added');
+  cloudSaveState();
 }
 
 async function toggleTaskDay(taskId) {
@@ -903,11 +965,13 @@ async function toggleTaskDay(taskId) {
   }
   saveTasks(tasks);
   renderTasks();
-  // Sync to sheets
+  // Save state to cloud + log to tasks sheet
+  await cloudSaveState();
   const daysCompleted = task.checkedDays.length;
   const isComplete = daysCompleted >= task.totalDays;
   const dateCompleted = isComplete ? new Date().toLocaleDateString('en-GB') : '-';
   await syncTaskLog(task.name, task.totalDays, daysCompleted, isComplete ? 'Complete' : 'Active', dateCompleted);
+  showToast(isComplete ? '🎉 Task complete!' : '✓ Synced');
 }
 
 function deleteTask(taskId) {
@@ -915,6 +979,7 @@ function deleteTask(taskId) {
   saveTasks(tasks);
   renderTasks();
   showToast('🗑️ Task removed');
+  cloudSaveState();
 }
 
 function renderTasks() {
@@ -981,7 +1046,8 @@ function showToast(msg) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
-renderToday();
+// Load cloud state first, then render
+cloudLoadState();
 </script>
 </body>
 </html>
