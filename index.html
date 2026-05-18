@@ -334,6 +334,104 @@
     .app { padding-bottom: 100px; }
   }
 
+  /* CALENDAR MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 480px;
+    padding: 24px 20px 40px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; font-weight: 900;
+    margin-bottom: 4px;
+  }
+  .modal-title span { color: var(--gold); font-style: italic; }
+  .modal-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 20px;
+  }
+  .cal-day-label {
+    text-align: center; font-size: 10px;
+    color: var(--text-dim); letter-spacing: 0.5px;
+    padding: 4px 0;
+  }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    background: var(--surface2);
+    color: var(--text-muted);
+    position: relative;
+  }
+  .cal-day:active { transform: scale(0.93); }
+  .cal-day.today { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+  .cal-day.selected { background: var(--gold); color: #0a0a0a; font-weight: 700; border-color: var(--gold); }
+  .cal-day.has-data::after {
+    content: ''; position: absolute; bottom: 3px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--green);
+  }
+  .cal-day.selected.has-data::after { background: #0a0a0a; }
+  .cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+  .cal-day.future { opacity: 0.25; cursor: not-allowed; }
+  .cal-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-nav-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px;
+    padding: 6px 12px; cursor: pointer; font-size: 16px;
+  }
+  .cal-month-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .modal-edit-section { margin-top: 4px; }
+  .modal-edit-date {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 12px;
+  }
+  .modal-close-btn {
+    width: 100%; background: transparent; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 10px;
+    padding: 12px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; cursor: pointer; margin-top: 12px;
+  }
+  .edit-viewing-banner {
+    background: rgba(201,168,76,0.12);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 10px; padding: 10px 14px;
+    margin: 0 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    display: none;
+  }
+  .edit-viewing-banner.visible { display: flex; }
+  .edit-viewing-text { font-size: 12px; color: var(--gold); }
+  .edit-back-btn {
+    background: var(--gold); color: #0a0a0a;
+    border: none; border-radius: 6px;
+    padding: 5px 10px; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
   /* LOADING OVERLAY */
   .loading-overlay {
     position: fixed; inset: 0; z-index: 9999;
@@ -379,9 +477,17 @@
   <!-- TODAY VIEW -->
   <div class="view active" id="view-today">
 
-    <div class="header">
-      <div class="header-eyebrow">90 Day Transformation</div>
-      <h1>Today's <span>Mission</span></h1>
+    <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div class="header-eyebrow">90 Day Transformation</div>
+        <h1 id="today-header-title">Today's <span>Mission</span></h1>
+      </div>
+      <button onclick="openCalendarModal('habits')" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--gold);font-size:18px;cursor:pointer;margin-top:28px;flex-shrink:0;" title="Edit a past day">📅</button>
+    </div>
+
+    <div class="edit-viewing-banner" id="edit-viewing-banner">
+      <span class="edit-viewing-text" id="edit-viewing-text">Viewing past day</span>
+      <button class="edit-back-btn" onclick="returnToToday()">← Back to Today</button>
     </div>
 
     <div class="day-hero">
@@ -530,9 +636,12 @@
 
   <!-- TASKS VIEW -->
   <div class="view" id="view-tasks">
-    <div class="header">
-      <div class="header-eyebrow">Timed Missions</div>
-      <h1>My <span>Tasks</span></h1>
+    <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div class="header-eyebrow">Timed Missions</div>
+        <h1>My <span>Tasks</span></h1>
+      </div>
+      <button onclick="openCalendarModal('tasks')" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--gold);font-size:18px;cursor:pointer;margin-top:28px;flex-shrink:0;" title="Edit past task day">📅</button>
     </div>
     <div style="padding:20px;">
 
@@ -560,6 +669,44 @@
     </div>
   </div>
 
+</div>
+
+<!-- CALENDAR MODAL -->
+<div class="modal-overlay hidden" id="calendar-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Edit a <span>Past Day</span></div>
+    <div class="modal-subtitle" id="cal-modal-subtitle">Select a date to edit habits and add a log entry</div>
+
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calChangeMonth(-1)">‹</button>
+      <span class="cal-month-label" id="cal-month-label"></span>
+      <button class="cal-nav-btn" onclick="calChangeMonth(1)">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+
+    <div class="modal-edit-section" id="modal-edit-section" style="display:none;">
+      <div class="modal-edit-date" id="modal-edit-date"></div>
+
+      <!-- Habit edit (shown for habits mode) -->
+      <div id="modal-habits-edit">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Tap to toggle habits for this day:</div>
+        <div id="modal-habit-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Log entry for this day:</div>
+        <textarea id="modal-log-input" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:11px 13px;resize:none;min-height:70px;outline:none;margin-bottom:10px;" placeholder="How did this day go?"></textarea>
+        <button onclick="saveModalEdit()" style="width:100%;background:var(--gold);color:#0a0a0a;border:none;border-radius:10px;padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save This Day</button>
+      </div>
+
+      <!-- Task edit (shown for tasks mode) -->
+      <div id="modal-tasks-edit" style="display:none;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Mark tasks completed on this day:</div>
+        <div id="modal-task-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+        <button onclick="saveModalTaskEdit()" style="width:100%;background:var(--gold);color:#0a0a0a;border:none;border-radius:10px;padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Save Tasks</button>
+      </div>
+    </div>
+
+    <button class="modal-close-btn" onclick="closeCalendarModal()">Close</button>
+  </div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -695,17 +842,31 @@ function getWeekday() {
   return new Date().getDay(); // 0=Sun,1=Mon...6=Sat
 }
 
-function habitAppliestoday(habit, dayNum) {
-  const wd = getWeekday();
+function habitAppliestoday(habit, dayNum, dateObj) {
+  const d = dateObj || new Date();
+  const wd = d.getDay();
   const phase = getPhase(dayNum);
   if (habit.phase > phase) return false;
   if (habit.days === 'daily') return true;
   if (habit.days === 'weekday') return wd >= 1 && wd <= 5;
-  if (habit.days === 'gym') return wd === 2 || wd === 3 || wd === 4; // Tue/Wed/Thu
+  if (habit.days === 'gym') return wd === 2 || wd === 3 || wd === 4;
   if (habit.days === 'sunday') return wd === 0;
   if (habit.days === 'weekend') return wd === 0 || wd === 6;
   if (habit.days === 'flexible') return true;
   return false;
+}
+
+function dateToKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function keyToDate(k) {
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function dayNumForDate(d) {
+  return Math.max(1, Math.floor((d - START_DATE) / 86400000) + 1);
 }
 
 // ─── RENDER TODAY ─────────────────────────────────────────────
@@ -1043,6 +1204,210 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── CALENDAR MODAL ──────────────────────────────────────────
+let _calMode = 'habits'; // 'habits' or 'tasks'
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth();
+let _calSelectedKey = null;
+
+function openCalendarModal(mode) {
+  _calMode = mode;
+  _calYear = new Date().getFullYear();
+  _calMonth = new Date().getMonth();
+  _calSelectedKey = null;
+  document.getElementById('modal-edit-section').style.display = 'none';
+  document.getElementById('cal-modal-subtitle').textContent =
+    mode === 'habits' ? 'Select a past date to edit habits & log' : 'Select a past date to mark task progress';
+  renderCalendar();
+  document.getElementById('calendar-modal').classList.remove('hidden');
+}
+
+function closeCalendarModal() {
+  document.getElementById('calendar-modal').classList.add('hidden');
+}
+
+function calChangeMonth(dir) {
+  _calMonth += dir;
+  if (_calMonth < 0) { _calMonth = 11; _calYear--; }
+  if (_calMonth > 11) { _calMonth = 0; _calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const state = getState();
+  const todayD = new Date();
+  const label = new Date(_calYear, _calMonth, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  document.getElementById('cal-month-label').textContent = label;
+
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  // Day labels
+  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-day-label';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(_calYear, _calMonth, 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1; // Mon-start
+  const daysInMonth = new Date(_calYear, _calMonth + 1, 0).getDate();
+
+  for (let i = 0; i < offset; i++) {
+    const blank = document.createElement('div');
+    blank.className = 'cal-day empty';
+    grid.appendChild(blank);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(_calYear, _calMonth, d);
+    const key = dateToKey(date);
+    const isToday = key === todayKey();
+    const isFuture = date > todayD;
+    const isBeforeStart = date < START_DATE;
+    const hasData = !!(state[key] && Object.keys(state[key]).length > 0);
+    const isSelected = key === _calSelectedKey;
+
+    const el = document.createElement('div');
+    el.textContent = d;
+    el.className = 'cal-day' +
+      (isToday ? ' today' : '') +
+      (isFuture || isBeforeStart ? ' future' : '') +
+      (hasData ? ' has-data' : '') +
+      (isSelected ? ' selected' : '');
+
+    if (!isFuture && !isBeforeStart) {
+      el.addEventListener('click', () => selectCalDay(key, date));
+    }
+    grid.appendChild(el);
+  }
+}
+
+function selectCalDay(key, dateObj) {
+  _calSelectedKey = key;
+  renderCalendar();
+
+  const dayNum = dayNumForDate(dateObj);
+  const dateLabel = dateObj.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('modal-edit-date').textContent = 'Day ' + dayNum + ' · ' + dateLabel;
+  document.getElementById('modal-edit-section').style.display = 'block';
+
+  if (_calMode === 'habits') {
+    document.getElementById('modal-habits-edit').style.display = 'block';
+    document.getElementById('modal-tasks-edit').style.display = 'none';
+    renderModalHabits(key, dayNum, dateObj);
+    const state = getState();
+    document.getElementById('modal-log-input').value = (state.logs && state.logs[key]) ? state.logs[key] : '';
+  } else {
+    document.getElementById('modal-habits-edit').style.display = 'none';
+    document.getElementById('modal-tasks-edit').style.display = 'block';
+    renderModalTasks(key);
+  }
+}
+
+function renderModalHabits(key, dayNum, dateObj) {
+  const state = getState();
+  const checked = state[key] || {};
+  const habits = ALL_HABITS.filter(h => habitAppliestoday(h, dayNum, dateObj));
+  const list = document.getElementById('modal-habit-list');
+  list.innerHTML = '';
+
+  if (habits.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--text-dim);">No habits scheduled for this day.</div>';
+    return;
+  }
+
+  habits.forEach(habit => {
+    const done = !!checked[habit.id];
+    const row = document.createElement('div');
+    row.className = 'habit-row' + (done ? ' done' : '');
+    row.style.padding = '10px 14px';
+    row.innerHTML = `
+      <div class="habit-check"></div>
+      <div class="habit-info">
+        <div class="habit-name" style="font-size:13px;">${habit.emoji} ${habit.name}</div>
+      </div>`;
+    row.addEventListener('click', () => {
+      const s = getState();
+      if (!s[key]) s[key] = {};
+      s[key][habit.id] = !s[key][habit.id];
+      saveState(s);
+      renderModalHabits(key, dayNum, dateObj);
+      renderCalendar();
+    });
+    list.appendChild(row);
+  });
+}
+
+function renderModalTasks(key) {
+  const tasks = getTasks();
+  const list = document.getElementById('modal-task-list');
+  list.innerHTML = '';
+
+  if (tasks.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--text-dim);">No active tasks.</div>';
+    return;
+  }
+
+  tasks.forEach(task => {
+    const checked = task.checkedDays.includes(key);
+    const row = document.createElement('div');
+    row.className = 'habit-row' + (checked ? ' done' : '');
+    row.style.padding = '10px 14px';
+    row.innerHTML = `
+      <div class="habit-check"></div>
+      <div class="habit-info">
+        <div class="habit-name" style="font-size:13px;">${task.name}</div>
+        <div class="habit-sub">${task.checkedDays.length} / ${task.totalDays} days</div>
+      </div>`;
+    row.addEventListener('click', () => {
+      const tasks2 = getTasks();
+      const t = tasks2.find(x => x.id === task.id);
+      if (!t) return;
+      if (t.checkedDays.includes(key)) {
+        t.checkedDays = t.checkedDays.filter(d => d !== key);
+      } else {
+        t.checkedDays.push(key);
+      }
+      saveTasks(tasks2);
+      renderModalTasks(key);
+    });
+    list.appendChild(row);
+  });
+}
+
+async function saveModalEdit() {
+  if (!_calSelectedKey) return;
+  const state = getState();
+  const logText = document.getElementById('modal-log-input').value.trim();
+  if (logText) {
+    if (!state.logs) state.logs = {};
+    state.logs[_calSelectedKey] = logText;
+    saveState(state);
+  }
+  showToast('⏳ Saving...');
+  await cloudSaveState();
+  showToast('✅ Past day saved');
+  closeCalendarModal();
+  renderToday();
+  renderStreaks();
+}
+
+async function saveModalTaskEdit() {
+  if (!_calSelectedKey) return;
+  showToast('⏳ Saving...');
+  await cloudSaveState();
+  showToast('✅ Tasks updated');
+  closeCalendarModal();
+  renderTasks();
+}
+
+// Return to today from edit banner
+function returnToToday() {
+  renderToday();
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
