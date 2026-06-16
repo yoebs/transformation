@@ -432,6 +432,30 @@
     font-family: 'DM Sans', sans-serif;
   }
 
+  /* TASK EDIT MODAL */
+  .task-edit-modal {
+    position: fixed; inset: 0; z-index: 600;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+  .task-edit-modal.hidden { display: none; }
+  .task-edit-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%; max-width: 400px;
+  }
+  .task-edit-box h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; font-weight: 900;
+    margin-bottom: 4px;
+  }
+  .task-edit-box h3 span { color: var(--gold); font-style: italic; }
+  .task-edit-box p { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+
   /* LOADING OVERLAY */
   .loading-overlay {
     position: fixed; inset: 0; z-index: 9999;
@@ -706,6 +730,23 @@
     </div>
 
     <button class="modal-close-btn" onclick="closeCalendarModal()">Close</button>
+  </div>
+</div>
+
+<!-- TASK EDIT MODAL -->
+<div class="task-edit-modal hidden" id="task-edit-modal">
+  <div class="task-edit-box">
+    <h3>Edit <span>Task</span></h3>
+    <p>Fix the name or adjust the number of days — your progress is kept.</p>
+    <input id="task-edit-name" type="text" placeholder="Task name"
+      style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 13px;outline:none;margin-bottom:10px;" />
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <label style="font-size:13px;color:var(--text-muted);white-space:nowrap;">Total days:</label>
+      <input id="task-edit-days" type="number" min="1" max="365"
+        style="width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:11px 13px;outline:none;" />
+    </div>
+    <button onclick="saveTaskEdit()" style="width:100%;background:var(--gold);color:#0a0a0a;border:none;border-radius:10px;padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:8px;">Save Changes</button>
+    <button onclick="closeTaskEditModal()" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:10px;padding:12px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;">Cancel</button>
   </div>
 </div>
 
@@ -1173,6 +1214,7 @@ function renderTasks() {
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${!isDone ? `<div style="width:28px;height:28px;border-radius:50%;border:2px solid ${checked ? 'var(--green)' : 'var(--border)'};background:${checked ? 'var(--green)' : 'var(--surface2)'};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">${checked ? '✓' : ''}</div>` : ''}
+          <div onclick="event.stopPropagation();openTaskEditModal('${task.id}')" style="font-size:14px;cursor:pointer;padding:2px 6px;color:var(--text-dim);">✏️</div>
           <div onclick="event.stopPropagation();deleteTask('${task.id}')" style="font-size:16px;cursor:pointer;padding:2px 4px;color:var(--text-dim);">✕</div>
         </div>
       </div>
@@ -1204,6 +1246,42 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── TASK EDIT MODAL ─────────────────────────────────────────
+let _editingTaskId = null;
+
+function openTaskEditModal(taskId) {
+  const tasks = getTasks();
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  _editingTaskId = taskId;
+  document.getElementById('task-edit-name').value = task.name;
+  document.getElementById('task-edit-days').value = task.totalDays;
+  document.getElementById('task-edit-modal').classList.remove('hidden');
+}
+
+function closeTaskEditModal() {
+  _editingTaskId = null;
+  document.getElementById('task-edit-modal').classList.add('hidden');
+}
+
+async function saveTaskEdit() {
+  if (!_editingTaskId) return;
+  const newName = document.getElementById('task-edit-name').value.trim();
+  const newDays = parseInt(document.getElementById('task-edit-days').value);
+  if (!newName || !newDays || newDays < 1) { showToast('⚠️ Fill in both fields'); return; }
+  const tasks = getTasks();
+  const task = tasks.find(t => t.id === _editingTaskId);
+  if (!task) return;
+  task.name = newName;
+  task.totalDays = newDays;
+  saveTasks(tasks);
+  closeTaskEditModal();
+  renderTasks();
+  showToast('⏳ Saving...');
+  await cloudSaveState();
+  showToast('✅ Task updated');
 }
 
 // ─── CALENDAR MODAL ──────────────────────────────────────────
