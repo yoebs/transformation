@@ -487,6 +487,8 @@
     100% { transform: scale(1); }
   }
 </style>
+<!-- OneSignal Web Push -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 </head>
 <body>
 
@@ -689,6 +691,42 @@
       <div class="section-title" style="padding:0;margin-bottom:12px;">Completed</div>
       <div id="completed-tasks" style="display:flex;flex-direction:column;gap:8px;"></div>
       <p id="no-completed-tasks" style="color:var(--text-dim);font-size:13px;">No completed tasks yet.</p>
+
+      <!-- NOTIFICATION SETTINGS -->
+      <div class="section-title" style="padding:0;margin-bottom:12px;margin-top:28px;">🔔 Notifications</div>
+      <div class="review-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.6;">
+          Get a random active task reminder on your phone, even when the app is closed.
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);">Remind me every</div>
+            <div style="font-size:11px;color:var(--text-dim);">hours between reminders</div>
+          </div>
+          <select id="notif-frequency" onchange="saveNotifSettings()"
+            style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:8px 12px;outline:none;cursor:pointer;">
+            <option value="1">Every 1 hr</option>
+            <option value="2">Every 2 hrs</option>
+            <option value="4" selected>Every 4 hrs</option>
+            <option value="6">Every 6 hrs</option>
+            <option value="8">Every 8 hrs</option>
+            <option value="12">Every 12 hrs</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">Notifications</div>
+            <div style="font-size:11px;color:var(--text-dim);" id="notif-status-text">Not yet enabled</div>
+          </div>
+          <button id="notif-toggle-btn" onclick="toggleNotifications()"
+            style="background:var(--gold);color:#0a0a0a;border:none;border-radius:8px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">
+            Enable
+          </button>
+        </div>
+        <div id="notif-next-wrap" style="display:none;">
+          <div style="font-size:11px;color:var(--text-dim);">Next reminder: <span id="notif-next-time" style="color:var(--gold);">—</span></div>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -1486,6 +1524,131 @@ async function saveModalTaskEdit() {
 // Return to today from edit banner
 function returnToToday() {
   renderToday();
+}
+
+// ─── ONESIGNAL + NOTIFICATIONS ───────────────────────────────
+const ONESIGNAL_APP_ID = '5c6b861d-957d-4370-a5d7-0005161b7d77';
+let _notifEnabled = false;
+let _notifTimer = null;
+
+// Init OneSignal
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({
+    appId: ONESIGNAL_APP_ID,
+    safari_web_id: 'web.onesignal.auto.26872e49-0741-4e76-94b8-10ddfedc5443',
+    notifyButton: { enable: false }, // We use our own button
+    allowLocalhostAsSecureOrigin: true,
+  });
+
+  // Check if already subscribed
+  const isSubscribed = await OneSignal.User.PushSubscription.optedIn;
+  if (isSubscribed) {
+    _notifEnabled = true;
+    updateNotifUI(true);
+    scheduleNextNotif();
+  }
+});
+
+function getNotifFreqHours() {
+  const sel = document.getElementById('notif-frequency');
+  return sel ? parseFloat(sel.value) : 4;
+}
+
+function saveNotifSettings() {
+  const freq = getNotifFreqHours();
+  const state = getState();
+  state.notifFreqHours = freq;
+  saveState(state);
+  // Reschedule with new frequency
+  if (_notifEnabled) {
+    clearTimeout(_notifTimer);
+    scheduleNextNotif();
+  }
+}
+
+function loadNotifSettings() {
+  const state = getState();
+  if (state.notifFreqHours) {
+    const sel = document.getElementById('notif-frequency');
+    if (sel) sel.value = state.notifFreqHours;
+  }
+}
+
+async function toggleNotifications() {
+  if (_notifEnabled) {
+    // Opt out
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.User.PushSubscription.optOut();
+      _notifEnabled = false;
+      clearTimeout(_notifTimer);
+      updateNotifUI(false);
+      showToast('🔕 Notifications off');
+    });
+  } else {
+    // Opt in
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.Notifications.requestPermission();
+      const isSubscribed = await OneSignal.User.PushSubscription.optedIn;
+      if (isSubscribed) {
+        _notifEnabled = true;
+        updateNotifUI(true);
+        scheduleNextNotif();
+        showToast('🔔 Notifications on!');
+      } else {
+        showToast('⚠️ Permission denied — check iPhone settings');
+      }
+    });
+  }
+}
+
+function updateNotifUI(enabled) {
+  const btn = document.getElementById('notif-toggle-btn');
+  const statusText = document.getElementById('notif-status-text');
+  const nextWrap = document.getElementById('notif-next-wrap');
+  if (btn) {
+    btn.textContent = enabled ? 'Disable' : 'Enable';
+    btn.style.background = enabled ? 'var(--red)' : 'var(--gold)';
+    btn.style.color = enabled ? 'white' : '#0a0a0a';
+  }
+  if (statusText) statusText.textContent = enabled ? 'Active ✓' : 'Not enabled';
+  if (nextWrap) nextWrap.style.display = enabled ? 'block' : 'none';
+}
+
+function getRandomActiveTask() {
+  const tasks = getTasks();
+  const active = tasks.filter(t => t.checkedDays.length < t.totalDays);
+  if (active.length === 0) return null;
+  return active[Math.floor(Math.random() * active.length)];
+}
+
+function scheduleNextNotif() {
+  clearTimeout(_notifTimer);
+  const freqMs = getNotifFreqHours() * 60 * 60 * 1000;
+  const nextTime = new Date(Date.now() + freqMs);
+  const nextEl = document.getElementById('notif-next-time');
+  if (nextEl) {
+    nextEl.textContent = nextTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+  _notifTimer = setTimeout(async () => {
+    await sendTaskNotification();
+    scheduleNextNotif(); // reschedule
+  }, freqMs);
+}
+
+async function sendTaskNotification() {
+  const task = getRandomActiveTask();
+  if (!task) return;
+  const progress = task.checkedDays.length;
+  const remaining = task.totalDays - progress;
+  OneSignalDeferred.push(async function(OneSignal) {
+    // For web push, we use the OneSignal REST API via Apps Script to avoid CORS
+    await cloudPush({
+      type: 'send_notification',
+      title: '⏳ Task Reminder',
+      message: `${task.name} — ${remaining} day${remaining !== 1 ? 's' : ''} remaining`,
+    });
+  });
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
